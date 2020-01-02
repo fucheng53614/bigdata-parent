@@ -13,8 +13,6 @@ import java.sql.SQLException;
 import java.util.*;
 
 public class UserRecordTask implements Task {
-    private DBPhoenixInstance db = DBPhoenixInstance.getInstance();
-
     private final String table = "bigdata_bi.vst_user_record";
     private final String create = "CREATE TABLE IF NOT EXISTS " + table + "( id VARCHAR PRIMARY KEY, pkg VARCHAR, uuid VARCHAR, channel VARCHAR, ip VARCHAR,bdModel VARCHAR,eth0Mac VARCHAR,dpi BIGINT,cpuCnt BIGINT,cpuName VARCHAR,country VARCHAR,region VARCHAR,city VARCHAR,touch BOOLEAN,largeMem BIGINT,limitMem BIGINT,screen VARCHAR,verCode VARCHAR,verName VARCHAR,isVip BOOLEAN,bdCpu VARCHAR,deviceName VARCHAR,firstTime BIGINT,lastTime BIGINT,activeDates VARCHAR, count BIGINT)";
 
@@ -40,7 +38,7 @@ public class UserRecordTask implements Task {
     public void process(JavaRDD<String> rdd) throws Exception {
         List<Tuple2<String, UserRecord>> data = rdd.map(JSONObject::parseObject).filter(jsonObject -> {
             String action = jsonObject.getString("kafkaTopic");
-            return action.equals("user") || action.equals("user_dayly") || action.equals("qq_user");
+            return action.equals("user") || action.equals("user_dayly");
         }).mapToPair(jsonObject -> {
             String pkg = jsonObject.getString("pkg");
             String uuid = jsonObject.getString("uuid");

@@ -9,5 +9,5 @@
 out
 gen
 /spark-warehouse/
-/bigdata-spark/src/main/resources/system.properties
+/bigdata-spark/src/main/resources/config.properties
 /bigdata-spark/target/

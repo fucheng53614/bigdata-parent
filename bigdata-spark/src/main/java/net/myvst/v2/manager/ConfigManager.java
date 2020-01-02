@@ -16,10 +16,14 @@ public class ConfigManager {
     private static ConfigManager instance = new ConfigManager();
 
     public static final String SPARK_STREAMING_SECONDS = "spark.streaming.seconds";
+    public static final String SPARK_STREAMING_NAME = "spark.streaming.name";
 
     public static final String KAFKA_TOPICS = "kafka.topics";
     public static final String KAFKA_BOOTSTRAP_SERVERS = "kafka.bootstrap.servers";
     public static final String KAFKA_MAX_POLL_RECORDS = "kafka.max.poll.records";
+    public static final String KAFKA_GROUP_ID = "kafka.group.id";
+
+    public static final String SAVE_JDBC = "save.jdbc";
 
     public static final String PHOENIX_JDBC_DRIVER = "phoenix.jdbc.driver";
     public static final String PHOENIX_JDBC_URL = "phoenix.jdbc.url";

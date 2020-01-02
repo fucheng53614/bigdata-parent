@@ -2,7 +2,9 @@ package net.myvst.v2.task.impl;
 
 import com.alibaba.fastjson.JSONObject;
 import net.myvst.v2.bean.StatCounter;
+import net.myvst.v2.db.DBOperator;
 import net.myvst.v2.db.DBPhoenixInstance;
+import net.myvst.v2.manager.ConfigManager;
 import net.myvst.v2.task.Task;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.spark.api.java.JavaRDD;
@@ -14,7 +16,6 @@ import java.sql.SQLException;
 import java.util.*;
 
 public class HomeClassifyClickTask implements Task {
-    private DBPhoenixInstance db = DBPhoenixInstance.getInstance();
     private final String table = "bigdata_bi.vst_home_classify_click";
     private final String create = "CREATE TABLE IF NOT EXISTS " + table + "( id VARCHAR PRIMARY KEY, date VARCHAR, cid VARCHAR, uv BIGINT, vv BIGINT, insertTime BIGINT)";
 

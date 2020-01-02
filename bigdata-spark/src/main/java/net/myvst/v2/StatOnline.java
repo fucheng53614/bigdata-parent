@@ -40,8 +40,7 @@ public class StatOnline {
         Collection<String> topics = ConfigManager.getInstance().getList(ConfigManager.KAFKA_TOPICS);
 
         SparkConf conf = new SparkConf();
-        conf.setMaster("local[*]");
-        conf.setAppName(StatOnline.class.getSimpleName());
+        conf.setAppName(ConfigManager.getInstance().getString(ConfigManager.SPARK_STREAMING_NAME));
         conf.registerKryoClasses(new Class[]{Object.class, StatCounter.class, JSONObject.class, UserRecord.class, Set.class});
         conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer");
         conf.set("spark.streaming.kafka.maxPollCount", "30000");
@@ -52,7 +51,7 @@ public class StatOnline {
         kafkaParams.put("bootstrap.servers", ConfigManager.getInstance().getString(ConfigManager.KAFKA_BOOTSTRAP_SERVERS));
         kafkaParams.put("key.deserializer", StringDeserializer.class);
         kafkaParams.put("value.deserializer", StringDeserializer.class);
-        kafkaParams.put("group.id", "StatOnline");
+        kafkaParams.put("group.id",ConfigManager.getInstance().getString(ConfigManager.KAFKA_GROUP_ID));
         kafkaParams.put("auto.offset.reset", "latest");
         kafkaParams.put("enable.auto.commit", false);
         kafkaParams.put("max.poll.records", ConfigManager.getInstance().getString(ConfigManager.KAFKA_MAX_POLL_RECORDS));
