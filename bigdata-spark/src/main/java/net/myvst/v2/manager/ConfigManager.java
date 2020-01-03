@@ -5,35 +5,25 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.InputStream;
 import java.net.URL;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Properties;
+import java.util.*;
 
 public class ConfigManager {
     private static ConfigManager instance = new ConfigManager();
 
     public static final String SPARK_STREAMING_SECONDS = "spark.streaming.seconds";
-    public static final String SPARK_STREAMING_NAME = "spark.streaming.name";
 
     public static final String KAFKA_TOPICS = "kafka.topics";
-    public static final String KAFKA_BOOTSTRAP_SERVERS = "kafka.bootstrap.servers";
-    public static final String KAFKA_MAX_POLL_RECORDS = "kafka.max.poll.records";
-    public static final String KAFKA_GROUP_ID = "kafka.group.id";
 
     public static final String SAVE_JDBC = "save.jdbc";
-
-    public static final String PHOENIX_JDBC_DRIVER = "phoenix.jdbc.driver";
-    public static final String PHOENIX_JDBC_URL = "phoenix.jdbc.url";
-
-    public static final String MYSQL_JDBC_DRIVER = "mysql.jdbc.driver";
-    public static final String MYSQL_JDBC_URL = "mysql.jdbc.url";
-    public static final String MYSQL_JDBC_USER = "mysql.jdbc.user";
-    public static final String MYSQL_JDBC_PASSWORD = "mysql.jdbc.password";
+    public static final String SAVE_BATCH = "save.batch";
 
     public static final String VIDEO_DETAILS_URL = "video.details.url";
+
+    public static final String SYSTEM_TASKS_SUB = "system.tasks";
+    public static final String SYSTEM_OFFSET_MANAGER = "system.offset.manager";
 
     private static final String SYSTEM_CONF = "bigdata.conf";
 
@@ -49,14 +39,16 @@ public class ConfigManager {
         try {
             if (!StringUtils.isEmpty(config)) {
                 File f = ConfigurationUtils.fileFromURL(new URL(config));
-                List<String> lines = FileUtils.readLines(f);
-                for (String line : lines) {
-                    String trimLine = line.trim();
-                    if (!StringUtils.isEmpty(trimLine) && !trimLine.startsWith("#")) {
-                        String[] split = line.split("=");
-                        conf.put(split[0].trim(), split[1].trim());
-                    }
-                }
+//                Properties properties = new Properties();
+                conf.load(new FileInputStream(f));
+//                List<String> lines = FileUtils.readLines(f);
+//                for (String line : lines) {
+//                    String trimLine = line.trim();
+//                    if (!StringUtils.isEmpty(trimLine) && !trimLine.startsWith("#")) {
+//                        String[] split = line.split("=");
+//                        conf.put(split[0].trim(), split[1].trim());
+//                    }
+//                }
             } else {
                 InputStream inputStream = ConfigManager.class.getResourceAsStream("/" + file);
                 conf.load(inputStream);
@@ -81,5 +73,18 @@ public class ConfigManager {
         }else{
             return Collections.emptyList();
         }
+    }
+
+    public Properties getSub2Properties(String prefix){
+        Iterator<Map.Entry<Object, Object>> iterator = conf.entrySet().iterator();
+        Properties properties = new Properties();
+        while (iterator.hasNext()) {
+            Map.Entry<Object, Object> entry = iterator.next();
+            String key = (String)entry.getKey();
+            if (key.startsWith(prefix)){
+                properties.put(key, entry.getValue());
+            }
+        }
+        return properties;
     }
 }

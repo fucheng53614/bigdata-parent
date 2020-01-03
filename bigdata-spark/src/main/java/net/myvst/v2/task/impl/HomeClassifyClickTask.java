@@ -3,43 +3,32 @@ package net.myvst.v2.task.impl;
 import com.alibaba.fastjson.JSONObject;
 import net.myvst.v2.bean.StatCounter;
 import net.myvst.v2.db.DBOperator;
-import net.myvst.v2.db.DBPhoenixInstance;
-import net.myvst.v2.manager.ConfigManager;
 import net.myvst.v2.task.Task;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.hadoop.io.MD5Hash;
+import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import scala.Tuple2;
 import scala.Tuple6;
 
-import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.*;
 
 public class HomeClassifyClickTask implements Task {
-    private final String table = "bigdata_bi.vst_home_classify_click";
-    private final String create = "CREATE TABLE IF NOT EXISTS " + table + "( id VARCHAR PRIMARY KEY, date VARCHAR, cid VARCHAR, uv BIGINT, vv BIGINT, insertTime BIGINT)";
 
-    public HomeClassifyClickTask() {
-        Connection connection = null;
-        try {
-            connection = db.getConnection();
-            db.executorUpdate(connection, create);
-        } catch (SQLException e) {
-            e.printStackTrace();
-        } finally {
-            if (connection != null) {
-                try {
-                    connection.close();
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
+    @Override
+    public String getTableName() {
+        return "bigdata_bi.vst_home_classify_click";
     }
 
     @Override
-    public void process(JavaRDD<String> rdd) throws Exception {
-        List<Tuple2<String, StatCounter>> data = rdd.map(line -> {
+    public String createTableSql() {
+        return "CREATE TABLE IF NOT EXISTS " + getTableName() + "( id VARCHAR PRIMARY KEY, vst_hcc_date VARCHAR, vst_hcc_cid VARCHAR, vst_hcc_uv BIGINT, vst_hcc_amount BIGINT, vst_hcc_addtime BIGINT, vst_hcc_uptime BIGINT)";
+    }
+
+    @Override
+    public Object process(JavaRDD<String> rdd) throws Exception {
+        JavaPairRDD<String, StatCounter> pairRDD = rdd.map(line -> {
             JSONObject jsonObject = JSONObject.parseObject(line);
             String uuid = jsonObject.getString("uuid");
             String entry1 = jsonObject.getString("entry1");
@@ -62,7 +51,9 @@ public class HomeClassifyClickTask implements Task {
         }).mapToPair(t6 -> {
             String key = t6._1() + "[@!@]" + t6._3();
             return new Tuple2<>(key, new StatCounter(1, Collections.singleton(t6._4())));
-        }).reduceByKey((statCounter1, statCounter2) -> {
+        });
+
+        List<Tuple2<String, StatCounter>> data = pairRDD.reduceByKey((statCounter1, statCounter2) -> {
             Set<String> key = new HashSet<>(statCounter1.getCountDistinct());
             key.addAll(statCounter2.getCountDistinct());
             statCounter1.setCount(statCounter1.getCount() + statCounter2.getCount());
@@ -70,33 +61,32 @@ public class HomeClassifyClickTask implements Task {
             return statCounter1;
         }).collect();
 
-        store(data);
+        return data;
     }
 
-    private void store(List<Tuple2<String, StatCounter>> data) throws SQLException {
-        Connection connection = null;
+    @Override
+    public void store(DBOperator db, Object obj) throws SQLException {
+        List<Tuple2<String, StatCounter>> data = (List<Tuple2<String, StatCounter>>) obj;
+        Object[][] objects = new Object[data.size()][];
+        for (int i = 0; i < data.size(); i++) {
+            Tuple2<String, StatCounter> t2 = data.get(i);
+            String key = t2._1;
+            String[] idSplit = key.split("\\[@!@]");
+            String date = idSplit[0];
+            String cid = idSplit[1];
 
-        try {
-            connection = db.getConnection();
-            Map<String, Map<String, Object>> map = new HashMap<>();
-            for (Tuple2<String, StatCounter> tuple2 : data) {
-                String id = tuple2._1;
-                String[] idSplit = id.split("\\[@!@]");
-                StatCounter value = tuple2._2;
-                long uv = value.getCountDistinct().size();
-                long vv = value.getCount();
+            StatCounter value = t2._2;
+            long uv = value.getCountDistinct().size();
+            long vv = value.getCount();
 
-                Map<String, Object> mapValue = map.computeIfAbsent(id, v -> new HashMap<String, Object>());
-                mapValue.put("id", id);
-                mapValue.put("date", idSplit[0]);
-                mapValue.put("cid", idSplit[1]);
-                mapValue.put("uv", uv);
-                mapValue.put("vv", vv);
-                mapValue.put("insertTime", System.currentTimeMillis());
-            }
-            db.insertOrAccumulate(connection, table, "id", map, Arrays.asList("id", "date", "cid", "uv", "vv", "insertTime"), Arrays.asList("id", "uv", "vv"), 1000);
-        }finally {
-            if (connection != null) connection.close();
+            String md5Id = MD5Hash.digest(key).toString();
+
+            long curTime = System.currentTimeMillis();
+            objects[i] = new Object[]{md5Id, date, cid, uv, vv, curTime, curTime, uv, vv, curTime};
         }
+        String insert = "UPSERT INTO " + getTableName() + "(id,vst_hcc_date,vst_hcc_cid,vst_hcc_uv,vst_hcc_amount,vst_hcc_addtime,vst_hcc_uptime) " +
+                "VALUES(?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE vst_hcc_uv=vst_hcc_uv+?,vst_hcc_amount=vst_hcc_amount+?,vst_hcc_uptime=?";
+        System.out.println(objects);
+        db.batch(insert, objects);
     }
 }

@@ -47,11 +47,21 @@
             <version>1.2.54</version>
         </dependency>
         <dependency>
+            <groupId>commons-dbutils</groupId>
+            <artifactId>commons-dbutils</artifactId>
+            <version>1.7</version>
+        </dependency>
+        <dependency>
             <groupId>org.apache.phoenix</groupId>
             <artifactId>phoenix-server-client</artifactId>
             <version>4.15.0-HBase-1.3</version>
             <scope>system</scope>
             <systemPath>/Users/fuch/Downloads/phoenix-4.15.0-HBase-1.3-client.jar</systemPath>
+        </dependency>
+        <dependency>
+            <groupId>commons-dbcp</groupId>
+            <artifactId>commons-dbcp</artifactId>
+            <version>1.4</version>
         </dependency>
     </dependencies>
 

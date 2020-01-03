@@ -1,176 +1,102 @@
 package net.myvst.v2.db;
 
-import java.sql.*;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
+import net.myvst.v2.manager.ConfigManager;
+import org.apache.commons.dbcp.BasicDataSourceFactory;
+import org.apache.commons.dbutils.QueryRunner;
+import org.apache.commons.dbutils.handlers.KeyedHandler;
+import org.apache.commons.dbutils.handlers.MapHandler;
+
+import javax.sql.DataSource;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.util.*;
 
 /**
  * JDBC常用操作
  * 1.查询，2.执行（新增/更新）,3. 批量新增
+ * <p>
+ * <p>
+ * //新增或者更新、新增或者累加、新增累加替换
  */
-public abstract class DBOperator {
+public class DBOperator {
+    private DataSource dataSource = null;
+    private int batch;
 
-    public static DBOperator getDBInstance(String db) {
-        if ("mysql".equals(db)) {
-            return DBMysqlInstance.getInstance();
-        } else if ("phoenix".equals(db)) {
-            return DBPhoenixInstance.getInstance();
-        } else {
-            throw new IllegalArgumentException(db + " not found.");
+    public DBOperator() {
+        batch = ConfigManager.getInstance().getInt(ConfigManager.SAVE_BATCH);
+        String prefix = ConfigManager.getInstance().getString(ConfigManager.SAVE_JDBC);
+        Properties tmpPro = ConfigManager.getInstance().getSub2Properties(prefix + ".");
+
+        Properties info = new Properties();
+        for (Map.Entry<Object, Object> entry : tmpPro.entrySet()) {
+            String key = String.valueOf(entry.getKey()).substring(prefix.length() + 1);
+            info.put(key, entry.getValue());
         }
-    }
-
-    protected void initClass(String className) throws ClassNotFoundException {
-        Class.forName(className);
-    }
-
-    public ResultSet executeQuery(Connection conn, String sql) throws SQLException {
-        PreparedStatement preparedStatement = conn.prepareStatement(sql);
-        ResultSet resultSet = preparedStatement.executeQuery();
-        return resultSet;
-    }
-
-    public int executorUpdate(Connection conn, String sql) throws SQLException {
-        PreparedStatement preparedStatement = conn.prepareStatement(sql);
-        return preparedStatement.executeUpdate();
-    }
-
-    public int executorBatchUpdate(Connection conn, String sql, Object[][] obj, int batch) throws SQLException {
-        int sucNum = 0;
         try {
-            PreparedStatement preparedStatement = conn.prepareStatement(sql);
-            conn.setAutoCommit(false);
-            for (int i = 0; i < obj.length; i++) {
-                for (int j = 1; j <= obj[i].length; j++) {
-                    preparedStatement.setObject(j, obj[i][j - 1]);
-                }
-                int ints = preparedStatement.executeUpdate();
-                sucNum += ints;
-                if (i + 1 % batch == 0) {
-                    conn.commit();
-                }
-            }
-            conn.commit();
-        } catch (SQLException e) {
-            conn.rollback();
-            throw e;
-        } finally {
-            conn.setAutoCommit(true);
-        }
-        return sucNum;
-    }
-
-    /**
-     * 新增或者更新
-     *
-     * @throws SQLException
-     */
-    public int insertOrUpdate(Connection conn, String table, String id, Map<String, Map<String, Object>> data, List<String> insert, List<String> update, int batch) throws SQLException {
-        return insertOrUpdateOrAccumulate(conn, table, id, data, insert, update, batch, false);
-    }
-
-    /**
-     * 新增或者累加
-     *
-     * @throws SQLException
-     */
-    public int insertOrAccumulate(Connection conn, String table, String id, Map<String, Map<String, Object>> data, List<String> insert, List<String> update, int batch) throws SQLException {
-        return insertOrUpdateOrAccumulate(conn, table, id, data, insert, update, batch, true);
-    }
-
-
-    private void wrapBatch(List<String> insert, StringBuilder join, StringBuilder param) {
-        if (insert.size() > 1) {
-            join.append(insert.get(0));
-            param.append("?");
-            for (int i = 1; i < insert.size(); i++) {
-                join.append(",").append(insert.get(i));
-                param.append(",").append("?");
-            }
+            dataSource = BasicDataSourceFactory.createDataSource(info);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
-    /**
-     * 新增或者修改或者累加
-     * 1。isAcc: true 新增或者累加
-     * 2. isAcc: false 新增或者修改
-     *
-     * @param conn
-     * @param table
-     * @param id
-     * @param data
-     * @param insert
-     * @param update
-     * @param batch
-     * @param isAcc
-     * @return
-     * @throws SQLException
-     */
-    private int insertOrUpdateOrAccumulate(Connection conn, String table, String id, Map<String, Map<String, Object>> data, List<String> insert, List<String> update, int batch, boolean isAcc) throws SQLException {
-        List<Object[]> updateObject = new ArrayList<>();
-        List<Object[]> insertObject = new ArrayList<>();
+    public void update(String sql, Object[] param) throws SQLException {
+        QueryRunner queryRunner = new QueryRunner(dataSource);
+        queryRunner.update(sql, param);
+    }
 
-        StringBuilder insertJoin = new StringBuilder();
-        StringBuilder insertParam = new StringBuilder();
-        wrapBatch(insert, insertJoin, insertParam);
+    public void update(String sql) throws SQLException {
+        QueryRunner queryRunner = new QueryRunner(dataSource);
+        queryRunner.update(sql);
+    }
 
-        StringBuilder updateJoin = new StringBuilder();
-        StringBuilder updateParam = new StringBuilder();
-        wrapBatch(update, updateJoin, updateParam);
+    public Map<String, Map<String, Object>> query(String sql, String key) throws SQLException {
+        QueryRunner queryRunner = new QueryRunner(dataSource);
+        return (Map<String, Map<String, Object>>) queryRunner.query(sql, new KeyedHandler(key));
+    }
 
-        for (Map.Entry<String, Map<String, Object>> entry : data.entrySet()) {
-            String idValue = entry.getKey();
-            Map<String, Object> mapValue = entry.getValue();
-            String query = "SELECT " + updateJoin + " FROM " + table + " WHERE " + id + " = '" + idValue + "'";
-            ResultSet resultSet = executeQuery(conn, query);
-            if (resultSet.next()) {
-                Object[] uo = new Object[update.size()];
-                if (isAcc) {
-                    uo[0] = resultSet.getString(1);
-                    for (int i = 1; i < update.size(); i++) {
-                        Object curObject = mapValue.get(update.get(i));
-                        if (curObject instanceof String) {
-                            String oldValue = resultSet.getString(i + 1);
-                            uo[i] = oldValue + "," + curObject;
-                        } else if (curObject instanceof Long) {
-                            long oldValue = resultSet.getLong(i + 1);
-                            long curValue = (long) mapValue.get(update.get(i));
-                            uo[i] = curValue + oldValue;
-                        }
-                    }
-                } else {
-                    for (int i = 0; i < update.size(); i++) {
-                        uo[i] = mapValue.get(update.get(i));
-                    }
+    public Map<String, Object> queryOne(String sql) throws SQLException {
+        QueryRunner queryRunner = new QueryRunner(dataSource);
+        return queryRunner.query(sql, new MapHandler());
+    }
+
+    public void batch(String sql, Object[][] data, int batch) throws SQLException {
+        try (Connection connection = dataSource.getConnection()) {
+            connection.setAutoCommit(false);
+            QueryRunner queryRunner = new QueryRunner();
+            for (int i = 0; i < data.length; i++) {
+                queryRunner.update(connection, sql, data[i]);
+                if ((i + 1) % batch == 0) {
+                    connection.commit();
                 }
-                updateObject.add(uo);
-            } else {
-                Object[] io = new Object[insert.size()];
-                for (int i = 0; i < insert.size(); i++) {
-                    io[i] = mapValue.get(insert.get(i));
-                }
-                insertObject.add(io);
             }
+            connection.commit();
+            connection.setAutoCommit(true);
         }
-        int result = executorBatch(conn, table, insertObject, insertJoin, insertParam, batch);
-        result += executorBatch(conn, table, updateObject, updateJoin, updateParam, batch);
-        return result;
     }
 
-    protected int executorBatch(Connection conn, String table, List<Object[]> objects, StringBuilder join, StringBuilder param, int batch) throws SQLException {
-        String insertSql = "INSERT INTO " + table + "( " + join + " ) VALUES ( " + param + " )";
-        return executorBatchUpdate(conn, insertSql, objects.toArray(new Object[0][]), batch);
+    public void batch(String sql, Object[][] data) throws SQLException {
+        batch(sql, data, batch);
     }
 
-    protected Connection getConnection(String url, String user, String password) throws SQLException {
-        return DriverManager.getConnection(url, user, password);
-    }
 
-    protected Connection getConnection(String url, Properties info) throws SQLException {
-        return DriverManager.getConnection(url, info);
-    }
+    public static void main(String[] args) throws SQLException {
+        DBOperator dbOperator = new DBOperator();
+        Object[][] objects = {
+//                {"c003ac4774a0bf53284577a6d934c4c2"}
+                {"88c3fed11f37b0e2176a99382d4b8867","net.myvst.v2","20200103","4","来吧！冠军","2","2","1578046334521","1578046334521","2","2","1578046334521"}
 
-    public abstract Connection getConnection() throws SQLException;
+        };
+        System.out.println(objects[0].length);
+
+//        '88c3fed11f37b0e2176a99382d4b8867','net.myvst.v2','20200103','4','来吧！冠军','2','2','1578046334521','1578046334521','2','2','1578046334521',UPSERT INTO bigdata_bi.vst_movie_classify_click(vst_mcc_id,vst_mcc_date,vst_mcc_cid,vst_mcc_name,vst_mcc_nameId,vst_mcc_uv,vst_mcc_amount,vst_mcc_addtime,vst_mcc_uptime) VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE vst_mcc_uv=vst_mcc_uv+?,vst_mcc_amount=vst_mcc_amount+?,vst_mcc_uptime=?
+
+        //CREATE TABLE IF NOT EXISTS bigdata_bi.vst_home_classify_click( id VARCHAR PRIMARY KEY, vst_hcc_date VARCHAR, vst_hcc_cid VARCHAR, vst_hcc_uv BIGINT, vst_hcc_amount BIGINT, vst_hcc_addtime BIGINT, vst_hcc_uptime BIGINT)
+
+        dbOperator.batch("UPSERT INTO bigdata_bi.vst_movie_classify_click(vst_mcc_id,vst_mcc_date,vst_mcc_cid,vst_mcc_name,vst_mcc_nameId,vst_mcc_uv,vst_mcc_amount,vst_mcc_addtime,vst_mcc_uptime) VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE vst_mcc_uv=vst_mcc_uv+?,vst_mcc_amount=vst_mcc_amount+?,vst_mcc_uptime=?", objects);
+//        dbOperator.batch("UPSERT INTO bigdata_bi.vst_user_record(id, pkg, uuid, channel, ip, bdModel, country, province, city, verCode, isVip, firstTime, lastTime, activeDates, count) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", objects);
+
+
+//        '8988e72efaecd554152b3f3aa58fb45b','net.myvst.v2','e86b164d-25ae-4e38-b12f-636e972e29c2','toptech','112.39.10.132','MStar Android TV','中国','辽宁','朝阳','4050','false','1578045379263','1578045379263','20200103','1','1','1578045379263',',20200103',UPSERT INTO bigdata_bi.vst_user_record(id, pkg, uuid, channel, ip, bdModel, country, province, city, verCode, isVip, firstTime, lastTime, activeDates, count) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE count=count+?,lastTime=?,activeDates=REGEXP_REPLACE(activeDates,'$','?')
+
+    }
 }

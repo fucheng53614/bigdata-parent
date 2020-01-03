@@ -42,7 +42,7 @@ public class VideoAndTopicCache implements Runnable, Serializable {
     public void run() {
         while (true) {
             try {
-                Thread.sleep(60 * 1000 * 3);
+                Thread.sleep(60 * 1000 * 10);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
