@@ -8,6 +8,7 @@
     <inceptionYear>2019</inceptionYear>
     <modules>
         <module>bigdata-spark</module>
+        <module>bigdata-phoenix</module>
     </modules>
 
     <repositories>

@@ -2,7 +2,7 @@ package net.myvst.v2.cache;
 
 import com.alibaba.fastjson.JSONObject;
 import lombok.extern.slf4j.Slf4j;
-import net.myvst.v2.manager.ConfigManager;
+import net.myvst.v2.utils.ConfigManager;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 
@@ -53,7 +53,7 @@ public class VideoAndTopicCache implements Runnable, Serializable {
     private void load() {
         try {
             log.info("flush movie to memory");
-            String downloadUrl = ConfigManager.getInstance().getString(ConfigManager.VIDEO_DETAILS_URL);
+            String downloadUrl = ConfigManager.getProperties(ConfigManager.Config.APP, "app.video.details.url");
             String movieUrl = downloadUrl + "?filename=movie.dat";
             video = readURLContent(movieUrl, "uuid");
             String topicUrl = downloadUrl + "?filename=topic.dat";

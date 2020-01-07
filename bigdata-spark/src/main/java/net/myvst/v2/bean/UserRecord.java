@@ -42,7 +42,9 @@ public class UserRecord implements Serializable {
     private long firstTime;
     private long lastTime;
     private String activeDates;
-    private long count;
+    private long click;
+    private long movieClick;
+    private long moviePlay;
 }
 
 /**

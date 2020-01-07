@@ -1,6 +1,7 @@
 package net.myvst.v2.task.impl;
 
 import com.alibaba.fastjson.JSONObject;
+import lombok.extern.slf4j.Slf4j;
 import net.myvst.v2.bean.StatCounter;
 import net.myvst.v2.db.DBOperator;
 import net.myvst.v2.task.Task;
@@ -14,6 +15,7 @@ import scala.Tuple6;
 import java.sql.SQLException;
 import java.util.*;
 
+@Slf4j
 public class HomeClassifyClickTask implements Task {
 
     @Override
@@ -67,8 +69,13 @@ public class HomeClassifyClickTask implements Task {
     @Override
     public void store(DBOperator db, Object obj) throws SQLException {
         List<Tuple2<String, StatCounter>> data = (List<Tuple2<String, StatCounter>>) obj;
-        Object[][] objects = new Object[data.size()][];
-        for (int i = 0; i < data.size(); i++) {
+
+        String insert = "UPSERT INTO " + getTableName() + "(id,vst_hcc_date,vst_hcc_cid,vst_hcc_uv,vst_hcc_amount,vst_hcc_addtime,vst_hcc_uptime) " +
+                "VALUES(?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE vst_hcc_uv=vst_hcc_uv+?,vst_hcc_amount=vst_hcc_amount+?,vst_hcc_uptime=?";
+
+        int size = data.size();
+        Object[][] oo = new Object[size][];
+        for (int i = 0; i < size; i++) {
             Tuple2<String, StatCounter> t2 = data.get(i);
             String key = t2._1;
             String[] idSplit = key.split("\\[@!@]");
@@ -82,11 +89,10 @@ public class HomeClassifyClickTask implements Task {
             String md5Id = MD5Hash.digest(key).toString();
 
             long curTime = System.currentTimeMillis();
-            objects[i] = new Object[]{md5Id, date, cid, uv, vv, curTime, curTime, uv, vv, curTime};
+            Object[] objects = new Object[]{md5Id, date, cid, uv, vv, curTime, curTime, uv, vv, curTime};
+            oo[i]= objects;
         }
-        String insert = "UPSERT INTO " + getTableName() + "(id,vst_hcc_date,vst_hcc_cid,vst_hcc_uv,vst_hcc_amount,vst_hcc_addtime,vst_hcc_uptime) " +
-                "VALUES(?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE vst_hcc_uv=vst_hcc_uv+?,vst_hcc_amount=vst_hcc_amount+?,vst_hcc_uptime=?";
-        System.out.println(objects);
-        db.batch(insert, objects);
+        int rows = db.batch(insert, oo);
+        log.info("commit [{}] rows [{}]", data.size(), rows);
     }
 }

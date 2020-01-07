@@ -1,0 +1,15 @@
+<configuration>
+    <properties>
+        <name>hbase.dynamic.jars.dir</name>
+        <value>hdfs://fuch0:9000/hbase/lib</value>
+    </properties>
+    <properties>
+        <name>hbase.local.dir</name>
+        <!--<value>/home/hadoop/hbase/local</value>-->
+        <value>/Users/fuch/Documents/workspace/scala/bigdata-parent/bigdata-spark/tmp</value>
+    </properties>
+    <property>
+        <name>fs.hdfs.impl</name>
+        <value>org.apache.hadoop.hdfs.DistributedFileSystem</value>
+    </property>
+</configuration>
