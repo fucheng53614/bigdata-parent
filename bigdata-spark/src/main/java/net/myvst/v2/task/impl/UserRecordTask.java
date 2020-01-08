@@ -4,7 +4,7 @@ import com.alibaba.fastjson.JSONObject;
 import com.google.common.collect.Sets;
 import lombok.extern.slf4j.Slf4j;
 import net.myvst.v2.bean.UserRecord;
-import net.myvst.v2.db.DBOperator;
+import net.myvst.v2.db.ICommonDao;
 import net.myvst.v2.task.Task;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.io.MD5Hash;
@@ -101,7 +101,7 @@ public class UserRecordTask implements Task {
     }
 
     @Override
-    public void store(DBOperator db, Object obj) throws SQLException {
+    public void store(ICommonDao db, Object obj) throws SQLException {
         List<Tuple2<String, UserRecord>> data = (List<Tuple2<String, UserRecord>>) obj;
 
         String sql = "UPSERT INTO " + getTableName() + "(id, pkg, uuid, channel, ip, bdModel, country, province, city, verCode, isVip, firstTime, lastTime, activeDates, click, movieClick, moviePlay) " +
@@ -141,7 +141,7 @@ public class UserRecordTask implements Task {
                     value.isVip()
             };
         }
-        int rows = db.batch(sql, oo);
+        int rows = db.insertBatch(sql, oo);
         log.info("commit [{}] rows [{}]", data.size(), rows);
 
     }

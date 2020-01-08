@@ -6,7 +6,6 @@
 .idea
 *.iml
 *.log
-out
-gen
-/spark-warehouse/
 /bigdata-spark/target/
+/bigdata-spark/src/main/resources/app.properties
+/bigdata-spark/src/main/resources/kafka.properties

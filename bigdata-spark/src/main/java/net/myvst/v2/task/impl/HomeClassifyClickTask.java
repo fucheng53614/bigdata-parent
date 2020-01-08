@@ -3,7 +3,7 @@ package net.myvst.v2.task.impl;
 import com.alibaba.fastjson.JSONObject;
 import lombok.extern.slf4j.Slf4j;
 import net.myvst.v2.bean.StatCounter;
-import net.myvst.v2.db.DBOperator;
+import net.myvst.v2.db.ICommonDao;
 import net.myvst.v2.task.Task;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.io.MD5Hash;
@@ -16,7 +16,7 @@ import java.sql.SQLException;
 import java.util.*;
 
 @Slf4j
-public class HomeClassifyClickTask implements Task {
+public class HomeClassifyClickTask implements Task{
 
     @Override
     public String getTableName() {
@@ -67,7 +67,7 @@ public class HomeClassifyClickTask implements Task {
     }
 
     @Override
-    public void store(DBOperator db, Object obj) throws SQLException {
+    public void store(ICommonDao db, Object obj) throws SQLException {
         List<Tuple2<String, StatCounter>> data = (List<Tuple2<String, StatCounter>>) obj;
 
         String insert = "UPSERT INTO " + getTableName() + "(id,vst_hcc_date,vst_hcc_cid,vst_hcc_uv,vst_hcc_amount,vst_hcc_addtime,vst_hcc_uptime) " +
@@ -92,7 +92,7 @@ public class HomeClassifyClickTask implements Task {
             Object[] objects = new Object[]{md5Id, date, cid, uv, vv, curTime, curTime, uv, vv, curTime};
             oo[i]= objects;
         }
-        int rows = db.batch(insert, oo);
+        int rows = db.insertBatch(insert, oo);
         log.info("commit [{}] rows [{}]", data.size(), rows);
     }
 }

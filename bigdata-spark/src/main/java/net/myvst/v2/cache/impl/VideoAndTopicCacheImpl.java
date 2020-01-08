@@ -1,13 +1,12 @@
-package net.myvst.v2.cache;
+package net.myvst.v2.cache.impl;
 
 import com.alibaba.fastjson.JSONObject;
 import lombok.extern.slf4j.Slf4j;
-import net.myvst.v2.utils.ConfigManager;
+import net.myvst.v2.cache.IVideoAndTopicCache;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.HashMap;
@@ -15,25 +14,23 @@ import java.util.Map;
 import java.util.zip.GZIPInputStream;
 
 @Slf4j
-public class VideoAndTopicCache implements Runnable, Serializable {
-    private static VideoAndTopicCache instance = new VideoAndTopicCache();
-
+public class VideoAndTopicCacheImpl implements IVideoAndTopicCache, Runnable {
     private Map<String, JSONObject> video = new HashMap<>();        //影片
     private Map<String, JSONObject> videoTopic = new HashMap<>();   //专题
+    private String url;
 
-    private VideoAndTopicCache() {
+    public VideoAndTopicCacheImpl(String url) {
+        this.url = url;
         load();
         new Thread(this).start();
     }
 
-    public static VideoAndTopicCache getInstance() {
-        return instance;
-    }
-
+    @Override
     public JSONObject getVideo(String k) {
         return video.get(k);
     }
 
+    @Override
     public JSONObject getVideoTopic(String k) {
         return videoTopic.get(k);
     }
@@ -53,10 +50,9 @@ public class VideoAndTopicCache implements Runnable, Serializable {
     private void load() {
         try {
             log.info("flush movie to memory");
-            String downloadUrl = ConfigManager.getProperties(ConfigManager.Config.APP, "app.video.details.url");
-            String movieUrl = downloadUrl + "?filename=movie.dat";
+            String movieUrl = url + "?filename=movie.dat";
             video = readURLContent(movieUrl, "uuid");
-            String topicUrl = downloadUrl + "?filename=topic.dat";
+            String topicUrl = url + "?filename=topic.dat";
             videoTopic = readURLContent(topicUrl, "topicId");
             log.info("flush movie completed");
         } catch (IOException e) {

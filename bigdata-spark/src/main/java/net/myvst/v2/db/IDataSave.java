@@ -2,10 +2,10 @@ package net.myvst.v2.db;
 
 import java.sql.SQLException;
 
-public interface DataMapping {
+public interface IDataSave {
     String getTableName();
 
     String createTableSql();
 
-    void store(DBOperator db, Object obj) throws SQLException;
+    void store(ICommonDao db, Object obj) throws SQLException;
 }

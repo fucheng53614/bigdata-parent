@@ -4,7 +4,7 @@ import com.alibaba.fastjson.JSONObject;
 import com.google.common.collect.Sets;
 import lombok.extern.slf4j.Slf4j;
 import net.myvst.v2.bean.StatCounter;
-import net.myvst.v2.db.DBOperator;
+import net.myvst.v2.db.ICommonDao;
 import net.myvst.v2.task.Task;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.io.MD5Hash;
@@ -44,7 +44,7 @@ public class MovieClassifyClickTask implements Task {
     }
 
     @Override
-    public void store(DBOperator db, Object obj) throws SQLException {
+    public void store(ICommonDao db, Object obj) throws SQLException {
         List<Tuple2<String, StatCounter>> data = (List<Tuple2<String, StatCounter>>) obj;
 
         String insert = "UPSERT INTO " + getTableName() + "(vst_mcc_id,vst_mcc_date,vst_mcc_cid,vst_mcc_name,vst_mcc_nameId,vst_mcc_uv,vst_mcc_amount,vst_mcc_addtime,vst_mcc_uptime) " +
@@ -68,7 +68,7 @@ public class MovieClassifyClickTask implements Task {
 
             oo[i] = objects;
         }
-        int rows = db.batch(insert, oo);
+        int rows = db.insertBatch(insert, oo);
         log.info("commit [{}] rows [{}]", data.size(), rows);
     }
 
